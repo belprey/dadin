@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Generala — Juego de Dados</title>
+<style>
+  :root{
+    --felt-1:#12563f;
+    --felt-2:#07231a;
+    --gold:#e8b64c;
+    --gold-2:#f7d98a;
+    --cream:#f6f1e4;
+    --panel:rgba(255,255,255,.055);
+    --line:rgba(232,182,76,.22);
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(ellipse at 50% -10%, #1a6b4d 0%, var(--felt-1) 35%, var(--felt-2) 100%) fixed;
+    color:var(--cream);
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    justify-content:center;
+    padding: 14px 14px calc(20px + env(safe-area-inset-bottom));
+    touch-action:manipulation;
+  }
+
+  .app{width:100%; max-width:720px; display:flex; flex-direction:column; gap:14px;}
+
+  .screen{display:flex; flex-direction:column; gap:14px; animation:fade .3s ease;}
+  .hidden{display:none !important;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+  /* ============ SETUP ============ */
+  .logo{
+    font-size:clamp(38px,12vw,60px);
+    margin:6px 0 0;
+    text-align:center;
+    font-weight:800;
+    letter-spacing:.02em;
+    background:linear-gradient(180deg,#fff8e2,var(--gold) 55%,#a97f22);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter: drop-shadow(0 3px 10px rgba(0,0,0,.5));
+  }
+  .sub{text-align:center; margin:0 0 8px; color:rgba(246,241,228,.6); font-size:14px; letter-spacing:.04em;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:18px;
+    display:flex; flex-direction:column; gap:14px;
+    backdrop-filter: blur(6px);
+  }
+  .lbl{font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--gold); font-weight:700;}
+
+  .count-row{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .count-row button{
+    font:inherit; font-weight:700; font-size:18px;
+    padding:12px 0; border-radius:12px; cursor:pointer;
+    background:rgba(255,255,255,.06);
+    color:var(--cream);
+    border:1px solid rgba(255,255,255,.12);
+    transition:.15s;
+  }
+  .count-row button.on{
+    background:linear-gradient(180deg,var(--gold-2),var(--gold));
+    color:#3a2a05; border-color:transparent;
+    box-shadow:0 3px 0 #a97f22;
+  }
+
+  .names{display:flex; flex-direction:column; gap:8px;}
+  .name-input{
+    font:inherit; padding:12px 14px; border-radius:12px;
+    background:rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.12);
+    color:var(--cream); outline:none; width:100%;
+    transition:.15s;
+  }
+  .name-input:focus{border-color:var(--gold); background:rgba(0,0,0,.35);}
+  .name-input::placeholder{color:rgba(246,241,228,.35);}
+
+  /* ============ BOTONES ============ */
+  .btn{
+    font:inherit; font-weight:700; border:0; border-radius:14px;
+    padding:13px 20px; cursor:pointer;
+    transition: transform .08s, filter .15s, background .15s, opacity .15s;
+  }
+  .btn:active{transform:translateY(1px) scale(.99);}
+  .btn.primary{
+    background:linear-gradient(180deg,var(--gold-2),var(--gold));
+    color:#3a2a05;
+    box-shadow:0 4px 0 #a97f22, 0 10px 20px rgba(0,0,0,.35);
+  }
+  .btn.primary:disabled{
+    filter:grayscale(.75); opacity:.4; box-shadow:none; cursor:not-allowed;
+  }
+  .btn.ghost{
+    background:transparent; color:var(--cream);
+    border:1px solid var(--line);
+  }
+  .btn.ghost:hover{background:rgba(232,182,76,.1);}
+
+  /* ============ GAME ============ */
+  .topbar{display:flex; align-items:center; gap:10px;}
+  .icon-btn{
+    width:40px; height:40px; flex:none;
+    border-radius:12px; cursor:pointer;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.12);
+    color:var(--cream); font-size:17px; font-weight:700;
+    display:grid; place-items:center;
+    transition:.15s;
+  }
+  .icon-btn:hover{background:rgba(232,182,76,.18);}
+
+  .turn-pill{
+    flex:1; text-align:center;
+    font-size:14px; letter-spacing:.03em;
+    color:rgba(246,241,228,.75);
+    padding:10px 12px; border-radius:12px;
+    background:rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.07);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .turn-pill b{color:var(--gold-2); font-size:15px;}
+
+  .dice-area{
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    padding:22px 12px 18px;
+    border-radius:20px;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.07), transparent 70%),
+      rgba(0,0,0,.22);
+    border:1px solid rgba(255,255,255,.06);
+    box-shadow: inset 0 2px 20px rgba(0,0,0,.4);
+  }
+
+  .dice{
+    display:flex; gap:clamp(6px,2vw,12px);
+    justify-content:center; flex-wrap:wrap;
+  }
+
+  .die{
+    width:clamp(50px,14.5vw,70px);
+    aspect-ratio:1;
+    border-radius:15px;
+    background:linear-gradient(150deg,#fffdf7 0%,#f0ead9 45%,#ddd6c6 100%);
+    box-shadow:
+      inset 0 -3px 0 rgba(0,0,0,.12),
+      inset 0 2px 0 rgba(255,255,255,.9),
+      0 5px 0 #9c937f,
+      0 9px 18px rgba(0,0,0,.45);
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    padding:12%;
+    gap:5%;
+    cursor:pointer;
+    user-select:none;
+    transition: transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s, opacity .2s;
+  }
+  .die .c{display:grid; place-items:center;}
+  .die .pip{
+    width:80%; aspect-ratio:1; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, #5a5a5a, #101010 80%);
+    box-shadow: inset 0 -1px 1px rgba(255,255,255,.15);
+  }
+  .die.blank{
+    background:rgba(255,255,255,.05);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.13);
+    cursor:default;
+  }
+  .die.blank .pip{display:none;}
+  .die.held{
+    transform:translateY(-11px) scale(1.05);
+    box-shadow:
+      inset 0 -3px 0 rgba(0,0,0,.12),
+      0 0 0 3px var(--gold),
+      0 0 22px rgba(232,182,76,.55),
+      0 12px 22px rgba(0,0,0,.5);
+  }
+  .die:not(.blank):active{transform:scale(.94);}
+
+  @keyframes toss{
+    0%{transform:translateY(0) rotate(0deg);}
+    40%{transform:translateY(-16px) rotate(10deg);}
+    70%{transform:translateY(-4px) rotate(-6deg);}
+    100%{transform:translateY(0) rotate(0deg);}
+  }
+  .dice.rolling .die{animation:toss .4s ease;}
+  .dice.rolling .die:nth-child(2){animation-delay:.035s;}
+  .dice.rolling .die:nth-child(3){animation-delay:.07s;}
+  .dice.rolling .die:nth-child(4){animation-delay:.105s;}
+  .dice.rolling .die:nth-child(5){animation-delay:.14s;}
+
+  .hint{
+    font-size:13px; text-align:center;
+    color:rgba(246,241,228,.6);
+    min-height:18px; letter-spacing:.02em;
+    padding:0 8px;
+  }
+  .hint b{color:var(--gold-2);}
+
+  .roll-btn{
+    width:100%;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    font-size:17px; padding:16px;
+  }
+  .badge{
+    display:inline-grid; place-items:center;
+    min-width:26px; height:26px; padding:0 7px;
+    border-radius:9px;
+    background:rgba(0,0,0,.28);
+    font-size:14px; font-weight:800;
+  }
+  .roll-btn:disabled .badge{background:rgba(0,0,0,.15);}
+
+  /* ============ TABLA ============ */
+  .card-wrap{
+    background:rgba(0,0,0,.26);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:6px 8px 8px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  table.card{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+    min-width:260px;
+  }
+  .card th, .card td{padding:9px 6px; text-align:center;}
+
+  .card thead th{
+    font-size:11px; font-weight:800;
+    text-transform:uppercase; letter-spacing:.08em;
+    color:rgba(246,241,228,.5);
+    border-bottom:1px solid rgba(232,182,76,.28);
+    padding-bottom:10px;
+    white-space:nowrap;
+    max-width:80px; overflow:hidden; text-overflow:ellipsis;
+  }
+  .card thead th.cur{
+    color:var(--gold-2);
+    text-shadow:0 0 14px rgba(232,182,76,.6);
+  }
+  .card thead th.cur::after{
+    content:'';
+    display:block; height:3px; margin:5px auto -10px;
+    width:60%; border-radius:3px;
+    background:var(--gold);
+    box-shadow:0 0 10px var(--gold);
+  }
+
+  .card th.cat-name{
+    text-align:left;
+    font-weight:600;
+    color:rgba(246,241,228,.9);
+    font-size:13.5px;
+    padding-left:8px;
+    white-space:nowrap;
+  }
+  .card th.cat-name .pts{
+    display:block;
+    font-size:10px;
+    font-weight:500;
+    letter-spacing:.04em;
+    color:rgba(246,241,228,.35);
+    margin-top:1px;
+  }
+
+  .card tbody tr{border-bottom:1px solid rgba(255,255,255,.05);}
+  .card tbody tr:last-child{border-bottom:0;}
+
+  .card td.cell{
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    border-radius:9px;
+    transition:background .15s, color .15s;
+    min-width:44px;
+  }
+  .card td.done{color:#8fe3b4;}
+  .card td.empty{color:rgba(246,241,228,.16); font-weight:400;}
+  .card td.preview{
+    color:rgba(246,241,228,.42);
+    cursor:pointer;
+    background:rgba(255,255,255,.03);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);
+  }
+  .card td.preview.good{
+    color:var(--gold-2);
+    background:rgba(232,182,76,.1);
+    box-shadow:inset 0 0 0 1px rgba(232,182,76,.35);
+  }
+  .card td.preview:hover{background:rgba(232,182,76,.22);}
+  .card td.preview:active{transform:scale(.96);}
+
+  .card tfoot th, .card tfoot td{
+    border-top:2px solid rgba(232,182,76,.3);
+    font-weight:800;
+    font-size:16px;
+    color:var(--cream);
+    padding-top:12px;
+  }
+  .card tfoot td{font-variant-numeric:tabular-nums;}
+  .card tfoot td.lead{color:var(--gold-2); text-shadow:0 0 16px rgba(232,182,76,.5);}
+  .card tfoot td.lead::before{content:'★ '; font-size:11px;}
+
+  /* ============ MODAL ============ */
+  .overlay{
+    position:fixed; inset:0; z-index:50;
+    background:rgba(3,14,10,.78);
+    backdrop-filter:blur(7px);
+    display:grid; place-items:center;
+    padding:18px;
+    animation:fade .22s ease;
+  }
+  .modal{
+    width:100%; max-width:430px;
+    max-height:86vh; overflow-y:auto;
+    background:linear-gradient(180deg,#0f4534,#0a2e23);
+    border:1px solid var(--line);
+    border-radius:22px;
+    padding:24px 22px;
+    box-shadow:0 24px 60px rgba(0,0,0,.7);
+    animation:pop .3s cubic-bezier(.34,1.4,.64,1);
+  }
+  @keyframes pop{from{transform:scale(.9); opacity:0} to{transform:scale(1); opacity:1}}
+  .modal h2{
+    margin:0 0 14px; text-align:center;
+    font-size:23px;
+    background:linear-gradient(180deg,#fff8e2,var(--gold));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .modal .rules-text{font-size:13.5px; line-height:1.65; color:rgba(246,241,228,.82);}
+  .modal .rules-text h3{
+    font-size:11px; text-transform:uppercase; letter-spacing:.1em;
+    color:var(--gold); margin:16px 0 7px;
+  }
+  .modal .rules-text h3:first-child{margin-top:0;}
+  .modal .rules-text ul{margin:0; padding-left:18px;}
+  .modal .rules-text li{margin-bottom:5px;}
+  .modal .rules-text b{color:var(--gold-2);}
+  .modal .btn{width:100%; margin-top:18px;}
+
+  .result-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:11px 14px; margin-bottom:7px;
+    border-radius:12px;
+    background:rgba(255,255,255,.05);
+    font-size:15px;
+  }
+  .result-row.win{
+    background:linear-gradient(90deg,rgba(232,182,76,.22),rgba(232,182,76,.06));
+    box-shadow:inset 0 0 0 1px rgba(232,182,76,.45);
+  }
+  .result-row .name{font-weight:600;}
+  .result-row .sc{font-weight:800; font-variant-numeric:tabular-nums; color:var(--gold-2);}
+  .result-row.win .sc::before{content:'👑 '; font-size:13px;}
+
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+    background:linear-gradient(180deg,var(--gold-2),var(--gold));
+    color:#3a2a05; font-weight:800; font-size:15px;
+    padding:11px 22px; border-radius:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+    opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s;
+    z-index:60; white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:380px){
+    .card th.cat-name{font-size:12px;}
+    .card th, .card td{padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= SETUP ================= -->
+  <div id="setup" class="screen">
+    <h1 class="logo">Generala</h1>
+    <p class="sub">El clásico juego de dados</p>
+
+    <div class="panel">
+      <div>
+        <div class="lbl" style="margin-bottom:8px">Jugadores</div>
+        <div class="count-row" id="countRow">
+          <button data-n="1">1</button>
+          <button data-n="2" class="on">2</button>
+          <button data-n="3">3</button>
+          <button data-n="4">4</button>
+        </div>
+      </div>
+      <div class="names" id="names"></div>
+      <button id="startBtn" class="btn primary">Empezar a jugar</button>
+    </div>
+
+    <button id="rulesBtnSetup" class="btn ghost">📖 Ver reglas</button>
+  </div>
+
+  <!-- ================= GAME ================= -->
+  <div id="game" class="screen hidden">
+    <div class="topbar">
+      <button id="backBtn" class="icon-btn" title="Nueva partida">←</button>
+      <div class="turn-pill" id="turnPill">Turno de <b>—</b></div>
+      <button id="rulesBtnGame" class="icon-btn" title="Reglas">?</button>
+    </div>
+
+    <div class="dice-area">
+      <div class="dice" id="dice"></div>
+      <div class="hint" id="hint"></div>
+    </div>
+
+    <button id="rollBtn" class="btn primary roll-btn">
+      🎲 Tirar dados <span class="badge" id="rollBadge">3</span>
+    </button>
+
+    <div class="card-wrap">
+      <table class="card" id="card"></table>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN DE CATEGORÍAS
+   ========================================================= */
+const CATS = [
+  { id:'u1',   name:'Unos',           kind:'num',  face:1, hint:'suma de 1' },
+  { id:'u2',   name:'Doses',          kind:'num',  face:2, hint:'suma de 2' },
+  { id:'u3',   name:'Treses',         kind:'num',  face:3, hint:'suma de 3' },
+  { id:'u4',   name:'Cuatros',        kind:'num',  face:4, hint:'suma de 4' },
+  { id:'u5',   name:'Cincos',         kind:'num',  face:5, hint:'suma de 5' },
+  { id:'u6',   name:'Seises',         kind:'num',  face:6, hint:'suma de 6' },
+  { id:'esc',  name:'Escalera',       kind:'esc',  hint:'20 puntos' },
+  { id:'full', name:'Full',           kind:'full', hint:'30 puntos' },
+  { id:'poker',name:'Poker',          kind:'poker',hint:'40 puntos' },
+  { id:'gen',  name:'Generala',       kind:'gen',  hint:'50 · 100 servida' },
+  { id:'gd',   name:'Generala Doble', kind:'gd',   hint:'100 puntos' },
+];
+
+const PIP_MAP = {
+  1:[5],
+  2:[1,9],
+  3:[1,5,9],
+  4:[1,3,7,9],
+  5:[1,3,5,7,9],
+  6:[1,3,4,6,7,9]
+};
+
+/* =========================================================
+   ESTADO
+   ========================================================= */
+const state = {
+  players: [],
+  turn: 0,
+  dice: [0,0,0,0,0],
+  held: [false,false,false,false,false],
+  rollsLeft: 3,
+  rolled: false,
+  firstRoll: false,
+  gameOver: false,
+};
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rnd = () => 1 + Math.floor(Math.random() * 6);
+const total = p => CATS.reduce((s,c) => s + (p.scores[c.id] || 0), 0);
+
+function counts(dice){
+  const c = [0,0,0,0,0,0,0];
+  dice.forEach(d => { if(d >= 1 && d <= 6) c[d]++; });
+  return c;
+}
+
+/* =========================================================
+   PUNTAJES
+   ========================================================= */
+function evaluate(dice, catId, scores, firstRoll){
+  if (dice.some(d => d === 0)) return 0;
+
+  const c = counts(dice);
+  const cat = CATS.find(x => x.id === catId);
+  const maxc = Math.max(...c);
+
+  switch (cat.kind) {
+
+    case 'num':
+      return c[cat.face] * cat.face;
+
+    case 'esc': {
+      const u = [...new Set(dice)].sort((a,b) => a-b).join('');
+      return (u === '12345' || u === '23456') ? 20 : 0;
+    }
+
+    case 'full': {
+      const vals = c.filter(x => x > 0).sort((a,b) => b - a);
+      return ((vals[0] === 3 && vals[1] === 2) || maxc === 5) ? 30 : 0;
+    }
+
+    case 'poker':
+      return maxc >= 4 ? 40 : 0;
+
+    case 'gen':
+      return maxc === 5 ? (firstRoll ? 100 : 50) : 0;
+
+    case 'gd':
+      return (maxc === 5 && scores.gen > 0) ? 100 : 0;
+  }
+  return 0;
+}
+
+/* =========================================================
+   SETUP — selección de jugadores
+   ========================================================= */
+let playerCount = 2;
+
+function buildNameInputs(n){
+  const wrap = $('#names');
+  const prev = [...wrap.querySelectorAll('input')].map(i => i.value);
+  wrap.innerHTML = '';
+  for (let i = 0; i < n; i++){
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'name-input';
+    inp.maxLength = 12;
+    inp.placeholder = `Jugador ${i+1}`;
+    inp.value = prev[i] || '';
+    wrap.appendChild(inp);
+  }
+}
+
+$('#countRow').addEventListener('click', e => {
+  const b = e.target.closest('button[data-n]');
+  if (!b) return;
+  playerCount = +b.dataset.n;
+  [...$('#countRow').children].forEach(x => x.classList.toggle('on', x === b));
+  buildNameInputs(playerCount);
+});
+
+buildNameInputs(playerCount);
+
+$('#startBtn').addEventListener('click', () => {
+  const inputs = [...$('#names').querySelectorAll('input')];
+  const names = inputs.map((inp, i) => (inp.value.trim() || `Jugador ${i+1}`).slice(0, 12));
+  startGame(names);
+});
+
+/* =========================================================
+   INICIO / REINICIO
+   ========================================================= */
+function startGame(names){
+  state.players = names.map(n => ({ name: n, scores: {} }));
+  state.turn = 0;
+  state.gameOver = false;
+  resetTurn();
+
+  $('#setup').classList.add('hidden');
+  $('#game').classList.remove('hidden');
+  render();
+}
+
+function resetTurn(){
+  state.dice = [0,0,0,0,0];
+  state.held = [false,false,false,false,false];
+  state.rollsLeft = 3;
+  state.rolled = false;
+  state.firstRoll = false;
+}
+
+$('#backBtn').addEventListener('click', () => {
+  if (confirm('¿Empezar una partida nueva? Se perderá el progreso.')){
+    $('#game').classList.add('hidden');
+    $('#setup').classList.remove('hidden');
+  }
+});
+
+/* =========================================================
+   TIRAR DADOS
+   ========================================================= */
+function rollDice(){
+  if (state.gameOver || state.rollsLeft <= 0) return;
+
+  state.firstRoll = (state.rollsLeft === 3);
+
+  for (let i = 0; i < 5; i++){
+    if (!state.held[i]) state.dice[i] = rnd();
+  }
+
+  state.rollsLeft--;
+  state.rolled = true;
+
+  const diceEl = $('#dice');
+  diceEl.classList.remove('rolling');
+  void diceEl.offsetWidth;
+  diceEl.classList.add('rolling');
+  setTimeout(() => diceEl.classList.remove('rolling'), 460);
+
+  render();
+}
+
+$('#rollBtn').addEventListener('click', rollDice);
+
+/* =========================================================
+   MANTENER / SOLTAR DADOS
+   ========================================================= */
+$('#dice').addEventListener('click', e => {
+  const die = e.target.closest('.die');
+  if (!die || state.gameOver) return;
+  if (!state.rolled) return;
+
+  const i = +die.dataset.i;
+  state.held[i] = !state.held[i];
+  renderDice();
+  renderHint();
+});
+
+/* =========================================================
+   ANOTAR PUNTAJE
+   ========================================================= */
+function pickCategory(catId){
+  if (state.gameOver || !state.rolled) return;
+
+  const p = state.players[state.turn];
+  if (p.scores[catId] !== undefined) return;
+
+  const value = evaluate(state.dice, catId, p.scores, state.firstRoll);
+  p.scores[catId] = value;
+
+  const cat = CATS.find(c => c.id === catId);
+  if (value > 0) toast(`+${value} en ${cat.name}`);
+  else toast(`Tachado: ${cat.name}`);
+
+  advanceTurn();
+}
+
+function advanceTurn(){
+  const finished = state.players.every(p =>
+    CATS.every(c => p.scores[c.id] !== undefined)
+  );
+
+  if (finished){
+    state.gameOver = true;
+    render();
+    setTimeout(showResults, 380);
+    return;
+  }
+
+  state.turn = (state.turn + 1) % state.players.length;
+  resetTurn();
+  render();
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function render(){
+  renderDice();
+  renderCard();
+  renderHeader();
+  renderHint();
+  renderRollBtn();
+}
+
+function dieHTML(value, held, index){
+  const pips = PIP_MAP[value] || [];
+  let cells = '';
+  for (let c = 1; c <= 9; c++){
+    cells += `<span class="c">${pips.includes(c) ? '<i class="pip"></i>' : ''}</span>`;
+  }
+  const cls = ['die'];
+  if (!value) cls.push('blank');
+  if (held && value) cls.push('held');
+  return `<div class="${cls.join(' ')}" data-i="${index}">${cells}</div>`;
+}
+
+function renderDice(){
+  $('#dice').innerHTML = state.dice
+    .map((v, i) => dieHTML(v, state.held[i], i))
+    .join('');
+}
+
+function renderHeader(){
+  const p = state.players[state.turn];
+  $('#turnPill').innerHTML = state.gameOver
+    ? 'Partida terminada'
+    : `Turno de <b>${esc(p.name)}</b>`;
+}
+
+function renderHint(){
+  const h = $('#hint');
+  if (state.gameOver){
+    h.textContent = 'Partida terminada';
+    return;
+  }
+  if (!state.rolled){
+    h.innerHTML = 'Tirá los dados para empezar 🎲';
+  } else if (state.rollsLeft > 0){
+    h.innerHTML = `Te quedan <b>${state.rollsLeft}</b> ${state.rollsLeft === 1 ? 'tirada' : 'tiradas'} — tocá un dado para quedarlo`;
+  } else {
+    h.innerHTML = 'Sin tiradas — <b>elegí una categoría</b>';
+  }
+}
+
+function renderRollBtn(){
+  const btn = $('#rollBtn');
+  const badge = $('#rollBadge');
+  badge.textContent = state.rollsLeft;
+  btn.disabled = state.gameOver || state.rollsLeft <= 0;
+}
+
+function renderCard(){
+  const card = $('#card');
+  let html = '<thead><tr><th class="cat-name">Categoría</th>';
+
+  state.players.forEach((p, i) => {
+    const cur = (i === state.turn && !state.gameOver) ? ' class="cur"' : '';
+    html += `<th${cur}>${esc(p.name)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  CATS.forEach(cat => {
+    html += `<tr><th class="cat-name">${cat.name}<span class="pts">${cat.hint}</span></th>`;
+
+    state.players.forEach((p, pi) => {
+      const has = p.scores[cat.id] !== undefined;
+      const isTurn = (pi === state.turn) && !state.gameOver;
+      const canPick = isTurn && state.rolled && !has;
+
+      let cls = 'cell';
+      let inner;
+
+      if (has){
+        cls += ' done';
+        inner = p.scores[cat.id];
+      } else if (canPick){
+        const v = evaluate(state.dice, cat.id, p.scores, state.firstRoll);
+        cls += ' preview' + (v > 0 ? ' good' : '');
+        inner = v;
+      } else {
+        cls += ' empty';
+        inner = '·';
+      }
+
+      html += `<td class="${cls}" data-p="${pi}" data-c="${cat.id}">${inner}</td>`;
+    });
+
+    html += '</tr>';
+  });
+
+  html += '</tbody><tfoot><tr><th class="cat-name">Total</th>';
+
+  const totals = state.players.map(total);
+  const max = Math.max(...totals);
+
+  state.players.forEach((p, i) => {
+    const lead = (totals[i] === max && max > 0) ? ' class="lead"' : '';
+    html += `<td${lead}>${totals[i]}</td>`;
+  });
+
+  html += '</tr></tfoot>';
+  card.innerHTML = html;
+}
+
+$('#card').addEventListener('click', e => {
+  const td = e.target.closest('td[data-c]');
+  if (!td) return;
+  if (+td.dataset.p !== state.turn) return;
+  pickCategory(td.dataset.c);
+});
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+let toastTimer = null;
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1400);
+}
+
+/* =========================================================
+   MODAL (reglas / resultados)
+   ========================================================= */
+function openModal(title, bodyHTML, btnLabel, onClose){
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h2>${title}</h2>
+      <div class="modal-body">${bodyHTML}</div>
+      <button class="btn primary">${btnLabel}</button>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const close = () => { ov.remove(); if (onClose) onClose(); };
+  ov.querySelector('button').addEventListener('click', close);
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+}
+
+const RULES_HTML = `
+  <div class="rules-text">
+    <h3>Cómo se juega</h3>
+    <ul>
+      <li>Se juega con <b>5 dados</b> y hasta <b>3 tiradas</b> por turno.</li>
+      <li>Después de cada tirada podés <b>quedar</b> los dados que quieras tocándolos.</li>
+      <li>Al terminar tus tiradas, elegís una <b>categoría</b> y se anota el puntaje.</li>
+      <li>Cada categoría se usa <b>una sola vez</b>. Si no te sirve, la tachás (0 puntos).</li>
+      <li>Gana quien sume más puntos al completar todas las categorías.</li>
+    </ul>
+
+    <h3>Puntajes</h3>
+    <ul>
+      <li><b>Números (1 al 6):</b> suma de los dados de ese número.</li>
+      <li><b>Escalera:</b> 1-2-3-4-5 o 2-3-4-5-6 → <b>20</b> puntos.</li>
+      <li><b>Full:</b> 3 de un número + 2 de otro → <b>30</b> puntos.</li>
+      <li><b>Poker:</b> 4 dados iguales → <b>40</b> puntos.</li>
+      <li><b>Generala:</b> 5 dados iguales → <b>50</b> puntos (<b>100</b> si sale en la primera tirada).</li>
+      <li><b>Generala Doble:</b> 5 dados iguales, si ya tenés una generala anotada → <b>100</b> puntos.</li>
+    </ul>
+
+    <h3>Ojo</h3>
+    <ul>
+      <li>La generala también sirve como <b>full</b> y como <b>poker</b>.</li>
+      <li>La Generala Doble solo paga si antes anotaste una Generala.</li>
+    </ul>
+  </div>`;
+
+function showRules(){
+  openModal('📖 Reglas de la Generala', RULES_HTML, 'Entendido');
+}
+
+$('#rulesBtnSetup').addEventListener('click', showRules);
+$('#rulesBtnGame').addEventListener('click', showRules);
+
+function showResults(){
+  const totals = state.players.map(total);
+  const max = Math.max(...totals);
+
+  const rows = state.players
+    .map((p, i) => ({ name: p.name, sc: totals[i] }))
+    .sort((a, b) => b.sc - a.sc)
+    .map(r => `
+      <div class="result-row ${r.sc === max ? 'win' : ''}">
+        <span class="name">${esc(r.name)}</span>
+        <span class="sc">${r.sc}</span>
+      </div>`)
+    .join('');
+
+  const winners = state.players.filter((p, i) => totals[i] === max);
+  const title = winners.length > 1
+    ? '🤝 ¡Empate!'
+    : `🏆 ¡Ganó ${esc(winners[0].name)}!`;
+
+  openModal(title, rows, 'Nueva partida', () => {
+    $('#game').classList.add('hidden');
+    $('#setup').classList.remove('hidden');
+  });
+}
+
+/* =========================================================
+   TECLADO (accesibilidad rápida)
+   ========================================================= */
+document.addEventListener('keydown', e => {
+  if ($('#game').classList.contains('hidden')) return;
+  if (e.code === 'Space' || e.code === 'Enter'){
+    if (document.activeElement === document.body){
+      e.preventDefault();
+      if (state.rollsLeft > 0) rollDice();
+    }
+  }
+});
+
+/* Inicial */
+render();
+</script>
+</body>
+</html>
